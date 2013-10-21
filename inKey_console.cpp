@@ -1,11 +1,11 @@
 //////////////////////////////////////////////////////////////////////
-//////////////////////////// inKey 6.00.X ////////////////////////////
+//////////////////////////// inKey 6.00.L ////////////////////////////
 //////////////////////////////////////////////////////////////////////
 // Автор: Дробанов Артём (DrAF) // draf@mail.ru                     //
 //////////////////////////////////////////////////////////////////////
 // Техническая поддержка: Делюсто Владимир (ProFit) // 0176@mail.ru //
 //////////////////////////////////////////////////////////////////////
-// Редакция: 2 марта 2003 г, 16 октября 2013 г.                     //
+// Редакция: 2 марта 2003 г, 21 октября 2013 г.                     //
 //////////////////////////  г. Череповец /////////////////////////////
 
 #include <stdio.h>
@@ -21,7 +21,7 @@ using namespace std;
 //////////////////////////////////////////////////////////////////////
 // Шифрование из "ASC 1.3.0.3"
 #include "inKey.cpp"  // 212CFBF8 (CRC32, WinRAR)
-//          "inKey.h" // 116A0EA1 (CRC32, WinRAR)
+//         "inKey.h"  // 116A0EA1 (CRC32, WinRAR)
 //////////////////////////////////////////////////////////////////////
 
 #define TO_READ  0  // Атрибут: ДЛЯ ЧТЕНИЯ
@@ -166,7 +166,7 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 				i++;
 			}
 		
-			// "Приклеиваем" к имени выходного файла расширение .iK
+			// "Приклеиваем" к имени выходного файла расширение ".iK"
 			for (j = 0; j < TARGET_EXT_LENGTH; j++)
 			{
 				szTargetFile[i + j] = rgTargetExt[j];
@@ -184,7 +184,7 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 			int LastPointPosition = 0; // Позиция последней точки
                                        // в имени файла...
 
-			cout << "Decryption mode selected..." << endl << endl;			
+			cout << "Decryption mode selected..." << endl << endl;
 
 			// Копируем имя исходного файла в имя целевого файла,
 			// определяя позицию, на которой встречается последняя
@@ -211,6 +211,10 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// завершаем работу программы...
 	if ((fSource = open_file_to_read(szSourceFile, lSourceSize)) == NULL)
 	{
+        cout << endl;
+        cout << "       Press any key to exit...";
+        getch();
+
 		delete [] szTargetFile;
 
 		return 1;
@@ -219,6 +223,10 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// Открываем парольный файл с вышеуказанными условиями...
 	if ((fPassword = open_file_to_read(szPasswordFile, lPasswordSize)) == NULL)
 	{
+        cout << endl;
+        cout << "       Press any key to exit...";
+        getch();
+
 		delete [] szTargetFile;
 		fclose(fSource);
 
@@ -241,15 +249,18 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	    // Если выбрана расшифровка...
 	    case DECRYPT:
 		{
-            		// Служебное поле уже учтено.
+            // Служебное поле уже учтено.
 		}
 	}
 
 	// Парольный файл должен быть не меньше исходного!
 	if (lPasswordSize < lContainerSize)
 	{
-		cout << "ERROR: The file-password is too small!" << endl;
+        cout << "ERROR: The file-password is too small!" << endl;
 		cout << "       It's size must be >= " << lContainerSize << " bytes!" << endl;
+        cout << endl;
+        cout << "       Press any key to exit...";
+        getch();
 
 		delete [] szTargetFile;
 		fclose(fSource);
@@ -260,7 +271,12 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 
 	// Если не можем открыть выходной файл...
 	if ((fTarget = fopen(szTargetFile, "wb")) == NULL)
-	{
+	{        
+        cout << "ERROR: Can't open output file (*.iK) to write!" << endl;
+        cout << endl;
+        cout << "       Press any key to exit...";
+        getch();
+
 		file_error_message(szTargetFile, TO_WRITE);
 		delete [] szTargetFile;
 		fclose(fSource);
@@ -377,27 +393,29 @@ int main(int argc, char* argv[])
 	int Mode;
 
 	cout << endl;
-	cout << "inKey 6.00.X   Copyright (C) DrAF, Cherepovets, 2003 - 2013." << endl;
+	cout << "inKey 6.00.L   Copyright (C) DrAF, Cherepovets, 2003 - 2013." << endl;
 	cout << endl;
 	
 	// Если количество аргументов в командной строке неправильное...
 	if (argc != ARGC_NUM)
-	{		
+	{
 		// ... и если программа запускается с некоторым числом аргументов...
 		if (argc != 1)
 		{
 			// ... если аргументов слишком мало...
 			if (argc < ARGC_NUM)
 			{
-				 cout << "ERROR: There is not enough arguments in a command line!" << endl;
-				 cout << endl;
+                cout << endl;
+				cout << "ERROR: There is not enough arguments in a command line!" << endl;
+				cout << endl;
 			}
 
 			// ... если аргументов слишком много...
 			if (argc > ARGC_NUM)
 			{
-				 cout << "ERROR: It is too many arguments in a command line!" << endl;
-				 cout << endl;
+                cout << endl;
+				cout << "ERROR: It is too many arguments in a command line!" << endl;
+				cout << endl;
 			}
 		}
 
@@ -406,7 +424,11 @@ int main(int argc, char* argv[])
 		cout << "               <commands>" << endl;
 		cout << "               e - to encrypt source file (*.*)"    << endl;
 		cout << "               d - to decrypt source file (*.*.iK)" << endl;
-		cout << endl;	 	
+		cout << endl;
+        
+        cout << "Press any key to exit...";
+        cout << endl;
+        getch();
 		
 		return 0;
 	} 
@@ -428,8 +450,11 @@ int main(int argc, char* argv[])
 
 	} else
 	{
-	   cout << endl << endl;
 	   cout << "ERROR: Wrong command!" << endl;
+       cout << endl;
+       cout << "       Press any key to exit...";
+       getch();
+
 	   return 1;
 	}
 	
