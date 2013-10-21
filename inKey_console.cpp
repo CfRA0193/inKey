@@ -211,9 +211,9 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// завершаем работу программы...
 	if ((fSource = open_file_to_read(szSourceFile, lSourceSize)) == NULL)
 	{
-        cout << endl;
-        cout << "       Press any key to exit...";
-        getch();
+		cout << endl;
+		cout << "       Press any key to exit...";
+		getch();
 
 		delete [] szTargetFile;
 
@@ -223,9 +223,9 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// Открываем парольный файл с вышеуказанными условиями...
 	if ((fPassword = open_file_to_read(szPasswordFile, lPasswordSize)) == NULL)
 	{
-        cout << endl;
-        cout << "       Press any key to exit...";
-        getch();
+		cout << endl;
+		cout << "       Press any key to exit...";
+		getch();
 
 		delete [] szTargetFile;
 		fclose(fSource);
@@ -249,18 +249,18 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	    // Если выбрана расшифровка...
 	    case DECRYPT:
 		{
-            // Служебное поле уже учтено.
+			// Служебное поле уже учтено.
 		}
 	}
 
 	// Парольный файл должен быть не меньше исходного!
 	if (lPasswordSize < lContainerSize)
 	{
-        cout << "ERROR: The file-password is too small!" << endl;
+		cout << "ERROR: The file-password is too small!" << endl;
 		cout << "       It's size must be >= " << lContainerSize << " bytes!" << endl;
-        cout << endl;
-        cout << "       Press any key to exit...";
-        getch();
+		cout << endl;
+		cout << "       Press any key to exit...";
+		getch();
 
 		delete [] szTargetFile;
 		fclose(fSource);
@@ -272,10 +272,10 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// Если не можем открыть выходной файл...
 	if ((fTarget = fopen(szTargetFile, "wb")) == NULL)
 	{        
-        cout << "ERROR: Can't open output file (*.iK) to write!" << endl;
-        cout << endl;
-        cout << "       Press any key to exit...";
-        getch();
+		cout << "ERROR: Can't open output file (*.iK) to write!" << endl;
+		cout << endl;
+		cout << "       Press any key to exit...";
+		getch();
 
 		file_error_message(szTargetFile, TO_WRITE);
 		delete [] szTargetFile;
@@ -405,7 +405,7 @@ int main(int argc, char* argv[])
 			// ... если аргументов слишком мало...
 			if (argc < ARGC_NUM)
 			{
-                cout << endl;
+				cout << endl;
 				cout << "ERROR: There is not enough arguments in a command line!" << endl;
 				cout << endl;
 			}
@@ -413,7 +413,7 @@ int main(int argc, char* argv[])
 			// ... если аргументов слишком много...
 			if (argc > ARGC_NUM)
 			{
-                cout << endl;
+				cout << endl;
 				cout << "ERROR: It is too many arguments in a command line!" << endl;
 				cout << endl;
 			}
@@ -425,10 +425,10 @@ int main(int argc, char* argv[])
 		cout << "               e - to encrypt source file (*.*)"    << endl;
 		cout << "               d - to decrypt source file (*.*.iK)" << endl;
 		cout << endl;
-        
-        cout << "Press any key to exit...";
-        cout << endl;
-        getch();
+
+		cout << "Press any key to exit...";
+		cout << endl;
+		getch();
 		
 		return 0;
 	} 
@@ -450,12 +450,12 @@ int main(int argc, char* argv[])
 
 	} else
 	{
-	   cout << "ERROR: Wrong command!" << endl;
-       cout << endl;
-       cout << "       Press any key to exit...";
-       getch();
+		cout << "ERROR: Wrong command!" << endl;
+		cout << endl;
+		cout << "       Press any key to exit...";
+		getch();
 
-	   return 1;
+		return 1;
 	}
 	
 	// Получив все необходимые данные, запускаем обработку файла...
