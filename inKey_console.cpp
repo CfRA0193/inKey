@@ -1,11 +1,11 @@
 //////////////////////////////////////////////////////////////////////
-//////////////////////////// inKey 6.00.L ////////////////////////////
+//////////////////////////// inKey 6.00.P ////////////////////////////
 //////////////////////////////////////////////////////////////////////
 // Автор: Дробанов Артём (DrAF) // draf@mail.ru                     //
 //////////////////////////////////////////////////////////////////////
 // Техническая поддержка: Делюсто Владимир (ProFit) // 0176@mail.ru //
 //////////////////////////////////////////////////////////////////////
-// Редакция: 2 марта 2003 г, 21 октября 2013 г.                     //
+// Редакция: 2 марта 2003 г, 02 ноября 2013 г.                      //
 //////////////////////////  г. Череповец /////////////////////////////
 
 #include <stdio.h>
@@ -29,16 +29,35 @@ using namespace std;
 #define TARGET_EXT_LENGTH   3          // Длина расширения файла
 #define MAX_NAME_LENGTH     215        // Максимально-допустимая длина имени файла
 #define MIN_ENC_BLOCK_SIZE  100 * 1024 // Минимальный размер блока для шифрования
-#define ARGC_NUM            4          // Требуемое количество аргументов
 #define INT32_SIZE          4          // Размер int32
+#define ARGC_NUM            5          // Требуемое количество аргументов
+
+//////////////////////////////////////////////////////////////////////
+
+typedef __int32           int32;
+typedef __int64           int64;
+typedef unsigned __int32  uint32;
+typedef unsigned __int64  uint64;
 
 //////////////////////////////////////////////////////////////////////
 // Этот union необходим для преобразования Int32 в байтовое представление
 typedef union
 {
-	__int32 intVariable;
+	int32 intVariable;
 	char rgbVariable[4];
 } TCharToInt32;
+
+//////////////////////////////////////////////////////////////////////
+
+class Random // by Eugene Roshal (public domain)
+{
+  private:
+    uint32 x,y,z,w;
+  public:
+    Random(uint32 Seed) { x = Seed; y = 362436069; z = 521288629; w = 88675123; }
+    uint32 Get32()    { uint32 t = x ^ (x << 11); x = y; y = z; z = w; return w = w ^ (w >> 19) ^ (t ^ (t >> 8)); }
+    uint64 Get64()    { return (uint64(Get32())<<32) | Get32(); }
+};
 
 //////////////////////////////////////////////////////////////////////
 // Формирует сообщение об ошибке открытия файла
@@ -126,19 +145,21 @@ void update_progress(int progress)
 
 ///////////////////////////////////////////////////////////////////////
 // Обеспечивает ФАЙЛОВЫЙ СЕРВИС для шифрования/расшифровки
-int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
+int process_file(char* szSourceFile, char* szPasswordFile, int mode, int password_selector)
 {
 	FILE *fSource, *fPassword, *fTarget;
-	TCharToInt32 charToInt;
+	TCharToInt32 charToInt;	
 	LARGE_INTEGER seed1, seed2, seed3, seed4;
-	long int i = 0, j;
+	Random pass_rnd(password_selector); // by Eugene Roshal (public domain)
+	int seed;
+	long int i = 0, j, dataLen, toRead, toWrite, readed, written;
 
 	// Размер исходного файла, файла-пароля, размер контейнера,
 	// реальный размер исходных данных в контейнере...
 	long int lSourceSize, lPasswordSize, lContainerSize, lRealSourceSize;
 	char rgTargetExt[] = ".iK";
 	char *szTargetFile = new char[MAX_NAME_LENGTH];
-	char *prgbSourceBuffer, *prgbPasswordBuffer, *prgbBitData;
+	char *prgbSourceBuffer, *prgbPasswordProBuffer, *prgbPasswordBuffer, *prgbBitData;
 
 	///////////////////////////////////////////
 	// Шифрование из "ASC 1.3.0.3"
@@ -152,7 +173,7 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	// дифференцированное получение имени выходного файла
 	// из имени входного файла в зависимости от режима работы
 	// программы
-	switch (Mode)
+	switch (mode)
 	{
 	    // Если выбрано шифрование...
 	    case ENCRYPT:
@@ -166,7 +187,7 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 				i++;
 			}
 		
-			// "Приклеиваем" к имени выходного файла расширение ".iK"
+			// "Приклеиваем" к имени выходного файла расширение ".iK"...
 			for (j = 0; j < TARGET_EXT_LENGTH; j++)
 			{
 				szTargetFile[i + j] = rgTargetExt[j];
@@ -237,7 +258,7 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 
 	// Определяем размер контейнера, в котором будут храниться данные...
 	lContainerSize = (lSourceSize < MIN_ENC_BLOCK_SIZE) ? MIN_ENC_BLOCK_SIZE : lSourceSize;
-	switch (Mode)
+	switch (mode)
 	{
 	    // Если выбрано шифрование...
 	    case ENCRYPT:
@@ -286,38 +307,62 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 	}
 
 	// Выделяем память под содержимое файлов...
-	prgbSourceBuffer   = new char [lContainerSize];
-	prgbPasswordBuffer = new char [lContainerSize];
-	
+	prgbSourceBuffer      = new char [lContainerSize];
+	prgbPasswordBuffer    = new char [lContainerSize];
+	prgbPasswordProBuffer = new char [lPasswordSize];
+
 	// Выделяем память для "двоичных данных"...
 	prgbBitData = new char[2 * NBITS * lContainerSize];
 
 	// Считываем данные из парольного файла (столько, сколько нужно для обработки контейнера)...
-	fread(prgbPasswordBuffer, lContainerSize, 1, fPassword);
+	toRead = dataLen = lPasswordSize;
+	readed = 0;
+	while((toRead = dataLen - (readed += fread((prgbPasswordProBuffer + readed), 1, toRead, fPassword))) != 0) ;
 	fclose(fPassword);
+
+	// Формируем оперативный парольный буфер на основании датчика псевдослучайных чисел...
+	for (i = 0; i < lContainerSize; i++)
+	{
+		prgbPasswordBuffer[i] = prgbPasswordProBuffer[pass_rnd.Get32() % lContainerSize];
+	}
+
+	// Очистка данных прообраза ключа...
+	memset(prgbPasswordProBuffer, 0x00, lPasswordSize);
+	delete [] prgbPasswordProBuffer;
+
 	QueryPerformanceCounter(&seed3);
 	    
 	// Реализуем выбранный режим работы программы...
-	switch (Mode)
+	switch (mode)
 	{
 		//  Если выбрано шифрование...
 		case ENCRYPT:
 		{
 			// Считываем данные из входного файла...
-			fread(prgbSourceBuffer, lSourceSize, 1, fSource);
+			toRead = dataLen = lSourceSize;
+			readed = 0;
+			while((toRead = dataLen - (readed += fread((prgbSourceBuffer + readed), 1, toRead, fSource))) != 0) ;
 			fclose(fSource);
+
 			QueryPerformanceCounter(&seed4);
+
+			// Инициализация "штатного" генератора случайных чисел...
+			seed = GetTickCount();
+			srand((unsigned int)seed);
+
+			// Инициализация генератора случайных чисел от Евгения Рошаля...
 			charToInt.rgbVariable[0] = seed1.LowPart & 0xFF;
 			charToInt.rgbVariable[1] = seed2.LowPart & 0xFF;
 			charToInt.rgbVariable[2] = seed3.LowPart & 0xFF;
 			charToInt.rgbVariable[3] = seed4.LowPart & 0xFF;
-			cout << "seed     : " << (unsigned int)charToInt.intVariable << "\n";
-			srand((unsigned int)charToInt.intVariable);
-			
+			Random padding_rnd(charToInt.intVariable); // by Eugene Roshal (public domain)
+
 			// Заполняем пустое место "мусором"...
 			for (i = 0, j = lSourceSize; i < (lContainerSize - lSourceSize) - INT32_SIZE; i++, j++)
 			{
-				prgbSourceBuffer[j] = rand();
+				// Значение основного генератора случайных чисел подпадает под влияние вспомогательного генератора
+				// (он сдвигает int32 от основного генератора вправо от 0..24 бит)...
+				prgbSourceBuffer[j] = (padding_rnd.Get32() >> (((uint32)rand()) % 25)) & 0xFF;
 			}
 			
 			//...дозаписывая в конце служебное поле размера исходных данных...
@@ -330,12 +375,16 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 			////////////////////////////////////////////////////////////////////
 			// Шифруем данные...
 			////////////////////////////////////////////////////////////////////
-			cout << "count    : " << lContainerSize << "\n";
+			cout << "seed     : " << (unsigned int)seed << "\n";
+			cout << "selector : " << password_selector  << "\n";
+			cout << "count    : " << (lContainerSize - INT32_SIZE) << "\n";
 			inKey.Encrypt(prgbSourceBuffer, lContainerSize, prgbPasswordBuffer);
 			////////////////////////////////////////////////////////////////////
 
 			// Запись обработанных данных на диск...
-			fwrite(prgbSourceBuffer, lContainerSize, 1, fTarget);
+			toWrite = dataLen = lContainerSize;
+			written = 0;
+			while((toWrite = dataLen - (written += fwrite((prgbSourceBuffer + written), 1, toWrite, fTarget))) != 0) ;
 			break;
 		}
 
@@ -343,13 +392,16 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
 		case DECRYPT:
 		{
 			// Считываем данные из входного файла-контейнера...
-			fread(prgbSourceBuffer, lContainerSize, 1, fSource);
+			toRead = dataLen = lContainerSize;
+			readed = 0;
+			while((toRead = dataLen - (readed += fread((prgbSourceBuffer + readed), 1, toRead, fSource))) != 0) ;
 			fclose(fSource);
 
 			////////////////////////////////////////////////////////////////////
 			// Расшифровываем данные...
 			////////////////////////////////////////////////////////////////////
-			cout << "count    : " << lContainerSize << "\n";
+			cout << "selector : " << password_selector  << "\n";
+			cout << "count    : " << (lContainerSize - INT32_SIZE) << "\n";
 			inKey.Decrypt(prgbSourceBuffer, lContainerSize, prgbPasswordBuffer);
 			////////////////////////////////////////////////////////////////////
 
@@ -362,11 +414,13 @@ int process_file(char* szSourceFile, char* szPasswordFile, int Mode)
             
 			if (lRealSourceSize > (lContainerSize - INT32_SIZE))
 			{
-				lRealSourceSize = lContainerSize - INT32_SIZE;
+				lRealSourceSize = (lContainerSize - INT32_SIZE); // Раскрываем весь контейнер...
 			}
 
 			// Запись обработанных данных на диск...
-			fwrite(prgbSourceBuffer, lRealSourceSize, 1, fTarget);
+			toWrite = dataLen = lRealSourceSize;
+			written = 0;
+			while((toWrite = dataLen - (written += fwrite((prgbSourceBuffer + written), 1, toWrite, fTarget))) != 0) ;
 		}
 	}
 
@@ -390,10 +444,10 @@ int main(int argc, char* argv[])
 {	
 	// szTargetFile инициализируется в функции файлового сервиса proceed_file
 	char* szMode, *szSourceFile, *szPasswordFile;
-	int Mode;
+	int mode, password_selector;
 
 	cout << endl;
-	cout << "inKey 6.00.L   Copyright (C) DrAF, Cherepovets, 2003 - 2013." << endl;
+	cout << "inKey 6.00.P   Copyright (C) DrAF, Cherepovets, 2003 - 2013." << endl;
 	cout << endl;
 	
 	// Если количество аргументов в командной строке неправильное...
@@ -419,11 +473,14 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		cout << "Usage:         inKey <command> <source file> <file-password>"  << endl;
+		cout << "Usage:         inKey <command> <source file> <file-password> <password selector>"  << endl;
 		cout << endl;
 		cout << "               <commands>" << endl;
 		cout << "               e - to encrypt source file (*.*)"    << endl;
 		cout << "               d - to decrypt source file (*.*.iK)" << endl;
+		cout << endl;
+		cout << "               <password selector>"  << endl;
+		cout << "               - integer value (seed)" << endl;
 		cout << endl;
 
 		cout << "Press any key to exit...";
@@ -438,15 +495,27 @@ int main(int argc, char* argv[])
 	szSourceFile   = argv[2];
 	szPasswordFile = argv[3];
 
+	try
+	{
+		password_selector = atoi(argv[4]);
+	}
+	catch (...)
+	{
+		cout << endl;
+		cout << "ERROR: Wrong password selector! Were used the default value (0)." << endl;
+		cout << endl;
+		password_selector = 0;
+	}
+
 	// Детектируем режим работы...
 	if ((szMode[0] == 'e') || (szMode[0] == 'E'))
 	{
-		Mode = ENCRYPT;
+		mode = ENCRYPT;
 
 	} else
 	if ((szMode[0] == 'd') || (szMode[0] == 'D'))
 	{
-		Mode = DECRYPT;
+		mode = DECRYPT;
 
 	} else
 	{
@@ -459,5 +528,5 @@ int main(int argc, char* argv[])
 	}
 	
 	// Получив все необходимые данные, запускаем обработку файла...
-	return process_file(szSourceFile, szPasswordFile, Mode);
+	return process_file(szSourceFile, szPasswordFile, mode, password_selector);
 }
